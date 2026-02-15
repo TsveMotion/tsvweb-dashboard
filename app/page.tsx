@@ -5,9 +5,11 @@ import AgentActivityMonitor from '@/components/AgentActivityMonitor';
 import CRMOverview from '@/components/CRMOverview';
 import ProjectStatusBoard from '@/components/ProjectStatusBoard';
 import ActivityFeed from '@/components/ActivityFeed';
+import { useCRMData } from '@/hooks/useCRMData';
 
 export default function Dashboard() {
   const [darkMode, setDarkMode] = useState(false);
+  const { data, loading, error } = useCRMData();
 
   return (
     <div className={`min-h-screen ${darkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}>
@@ -41,7 +43,7 @@ export default function Dashboard() {
           {/* CRM Overview */}
           <section>
             <h2 className="text-xl font-semibold mb-4">CRM Overview</h2>
-            <CRMOverview darkMode={darkMode} />
+            <CRMOverview darkMode={darkMode} loading={loading} data={data ?? undefined} error={error} />
           </section>
 
           {/* Two Column Layout */}
@@ -55,7 +57,7 @@ export default function Dashboard() {
             {/* Activity Feed */}
             <section>
               <h2 className="text-xl font-semibold mb-4">Activity Feed</h2>
-              <ActivityFeed darkMode={darkMode} />
+              <ActivityFeed darkMode={darkMode} activities={data?.activityFeed} loading={loading} />
             </section>
           </div>
         </div>
