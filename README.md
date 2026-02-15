@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TsvWeb Dashboard
 
-## Getting Started
+Represents the Next.js (App Router) dashboard that surfaces live CRM data, agent activity, and operational telemetry for TsvWeb. It fetches a published Google Sheets CRM export, enriches it with computed metrics, and exposes it through rate-limited server APIs so the UI can stay responsive without leaking secrets.
 
-First, run the development server:
+## Features
+
+- CRM overview with totals, pipelines, and follow-up tracking driven by a Google Sheets export
+- Agent activity grid with clickable detail views, messaging, and CRM-backed actions
+- Live log stream + spreadsheet snapshot that polls every 10 seconds for the freshest CRM data
+- Protected helper endpoints (`/api/agents/[name]`, `/api/logs`, `/api/messages`) guarded by a shared API key and rate limits
+
+## Environment variables
+
+| Name | Description | Default |
+| ---- | ----------- | ------- |
+| `CRM_SHEET_ID` | The publicly published Google Sheet ID hosting the CRM data | `1X9AiH3AYbsSnRpM7REIItFabGeVsL3Lsgh04M2EcE-4` |
+| `CRM_SHEETS_EXPORT_URL` | Override the CSV export URL when you need a different sheet or range | Builds from `CRM_SHEET_ID` if unset |
+| `DASHBOARD_API_KEY` | (Optional) Server-only API key that gates the detail/log/message endpoints | `tsvweb-public-key` (override in production) |
+| `NEXT_PUBLIC_DASHBOARD_API_KEY` | Must match `DASHBOARD_API_KEY`. Sent with fetch requests from the dashboard UI | `tsvweb-public-key` |
+
+> _Both API key env vars should match when you secure the dashboard. When left unset the routes remain open but still rate-limited._
+
+## API surface
+
+| Route | Purpose | Notes |
+| ----- | ------- | ----- |
+| `GET /api/crm` | Returns the full CRM payload (entities, metrics, breakdowns, activity) | Rate limited to ~45 req/min per IP. `Retry-After` header included when throttled. |
+| `GET /api/agents/:name` | Fetch detail + actionable task view for each agent | Requires `x-dashboard-api-key`/`Authorization` header matching the env key. Rate limited to ~30 req/min. |
+| `GET /api/logs` | Streams the latest CRM activity + spreadsheet snapshot | Optional API key + rate limited (~50 req/min). Ideal for the live log/worksheet component. |
+| `GET|POST /api/messages` | Read and send inter-agent notes/messages | Requires API key. POST accepts `{ from, to, message }`. Latest 30 messages stored in memory. |
+
+## Running locally
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Make sure to populate `.env` (use `.env.local` for your overrides) with the CRM sheet + API key values if you need to secure the routes. The client uses `NEXT_PUBLIC_DASHBOARD_API_KEY` and sends `x-dashboard-api-key` with every protected request.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Coolify deployment
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Create or update the Coolify service pointing at `https://github.com/TsveMotion/tsvweb-dashboard.git` (latest `main`).
+2. Set the build command to `npm run build` and the start command to `npm run start`.
+3. Supply any overriding env vars (at a minimum you should set `CRM_SHEET_ID` and optionally `CRM_SHEETS_EXPORT_URL`, `DASHBOARD_API_KEY`, `NEXT_PUBLIC_DASHBOARD_API_KEY`).
+4. Trigger the deployment—Coolify will install deps, build the dashboard, and expose the public URL (e.g., `https://your-coolify-host/tsvweb-dashboard`).
+5. Once deployed, confirm the live agent detail + log stream sections pull real CRM data via the new protected APIs.
 
-## Learn More
+## Rate limiting & security
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+All public-facing routes are throttled (per IP) using rolling window buckets (`lib/rateLimiter.ts`). You can adjust `maxRequests` / `windowMs` there if needed, but the defaults (30–50 req/min) keep the dashboard responsive while preventing malicious scraping. The sensitive detail/log/message APIs also require the shared dashboard API key that the client uses when invoking them.

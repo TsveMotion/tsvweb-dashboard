@@ -100,7 +100,7 @@ function isPipelineStatus(status?: string) {
   return PIPELINE_KEYWORDS.some((keyword) => lower.includes(keyword));
 }
 
-function formatRelativeTime(value?: string) {
+export function formatRelativeTime(value?: string) {
   const date = parseDate(value);
   if (!date) return 'Just now';
   const diff = Date.now() - date.getTime();

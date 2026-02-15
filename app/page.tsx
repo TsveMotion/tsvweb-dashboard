@@ -2,18 +2,26 @@
 
 import { useState } from 'react';
 import AgentActivityMonitor from '@/components/AgentActivityMonitor';
+import AgentDetailPanel from '@/components/AgentDetailPanel';
 import CRMOverview from '@/components/CRMOverview';
 import ProjectStatusBoard from '@/components/ProjectStatusBoard';
 import ActivityFeed from '@/components/ActivityFeed';
+import LiveLogStream from '@/components/LiveLogStream';
 import { useCRMData } from '@/hooks/useCRMData';
+import { useAgentDetail } from '@/hooks/useAgentDetail';
+import { useLiveLogs } from '@/hooks/useLiveLogs';
+import { useMessages } from '@/hooks/useMessages';
 
 export default function Dashboard() {
   const [darkMode, setDarkMode] = useState(false);
+  const [selectedAgent, setSelectedAgent] = useState('Nova');
   const { data, loading, error } = useCRMData();
+  const agentDetail = useAgentDetail(selectedAgent);
+  const liveLogs = useLiveLogs();
+  const messages = useMessages(selectedAgent);
 
   return (
     <div className={`min-h-screen ${darkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}>
-      {/* Header */}
       <header className="border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
@@ -31,36 +39,56 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="space-y-8">
-          {/* Agent Activity Monitor */}
-          <section>
-            <h2 className="text-xl font-semibold mb-4">Agent Activity</h2>
-            <AgentActivityMonitor darkMode={darkMode} />
-          </section>
-
-          {/* CRM Overview */}
-          <section>
-            <h2 className="text-xl font-semibold mb-4">CRM Overview</h2>
-            <CRMOverview darkMode={darkMode} loading={loading} data={data ?? undefined} error={error} />
-          </section>
-
-          {/* Two Column Layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Project Status Board */}
-            <section>
-              <h2 className="text-xl font-semibold mb-4">Active Projects</h2>
-              <ProjectStatusBoard darkMode={darkMode} />
-            </section>
-
-            {/* Activity Feed */}
-            <section>
-              <h2 className="text-xl font-semibold mb-4">Activity Feed</h2>
-              <ActivityFeed darkMode={darkMode} activities={data?.activityFeed} loading={loading} />
-            </section>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
+        <section className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold">Agent Activity</h2>
+            <span className="text-xs uppercase tracking-[0.3em] text-gray-400">Live data</span>
           </div>
+          <AgentActivityMonitor
+            darkMode={darkMode}
+            selectedAgent={selectedAgent}
+            onSelect={setSelectedAgent}
+          />
+          <AgentDetailPanel
+            darkMode={darkMode}
+            agentName={selectedAgent}
+            detail={agentDetail.detail}
+            loading={agentDetail.loading}
+            error={agentDetail.error}
+            messages={messages.messages}
+            messageLoading={messages.loading}
+            sending={messages.sending}
+            onSendMessage={messages.sendMessage}
+          />
+        </section>
+
+        <section>
+          <h2 className="text-xl font-semibold mb-4">CRM Overview</h2>
+          <CRMOverview darkMode={darkMode} loading={loading} data={data ?? undefined} error={error} />
+        </section>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <section>
+            <h2 className="text-xl font-semibold mb-4">Active Projects</h2>
+            <ProjectStatusBoard darkMode={darkMode} />
+          </section>
+          <section>
+            <h2 className="text-xl font-semibold mb-4">Activity Feed</h2>
+            <ActivityFeed darkMode={darkMode} activities={data?.activityFeed} loading={loading} />
+          </section>
         </div>
+
+        <section>
+          <LiveLogStream
+            darkMode={darkMode}
+            logs={liveLogs.logs}
+            spreadsheet={liveLogs.spreadsheet}
+            loading={liveLogs.loading}
+            error={liveLogs.error}
+            lastSynced={liveLogs.lastSynced}
+          />
+        </section>
       </main>
     </div>
   );
